@@ -11,14 +11,14 @@ $ARGUMENTS に決算短信PDFのファイルパスが指定されている場合
 
 ### Step 0: 環境確認とサーバー起動
 
-1. kessan-analyzerプロジェクトの存在確認:
+1. pl-sanky-diagramプロジェクトの存在確認:
 ```bash
-ls ~/workspace/obsidian_vault/kessan-analyzer/package.json
+ls ~/workspace/obsidian_vault/pl-sanky-diagram/package.json
 ```
 
 2. 依存パッケージのインストール確認:
 ```bash
-cd ~/workspace/obsidian_vault/kessan-analyzer && npm ls @anthropic-ai/sdk 2>/dev/null || npm install
+cd ~/workspace/obsidian_vault/pl-sanky-diagram && npm ls @anthropic-ai/sdk 2>/dev/null || npm install
 ```
 
 3. 空きポートを探してdevサーバー起動（バックグラウンド）:
