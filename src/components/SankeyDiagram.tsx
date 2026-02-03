@@ -25,28 +25,35 @@ export function SankeyDiagram({
   const [showThisYear, setShowThisYear] = useState(true);
   const chartData = sankeyRowsToChartData(rows, showThisYear);
 
+  // Link color follows the TARGET node color with transparency
+  const linkColors = chartData.links.map((l) => {
+    const targetNode = chartData.nodes[Number(l.target)];
+    return targetNode ? targetNode.color + "35" : "#00000015";
+  });
+
   const plotData: PlotParams["data"] = [
     {
       type: "sankey",
       orientation: "h",
+      arrangement: "fixed",
       node: {
-        pad: 20,
-        thickness: 24,
-        line: { color: "white", width: 1 },
+        pad: 18,
+        thickness: 22,
+        line: { color: "white", width: 0.5 },
         label: chartData.nodes.map((n) => n.label),
         color: chartData.nodes.map((n) => n.color),
-        hovertemplate: "%{label}<br>%{value:,.1f} 億円<extra></extra>",
+        x: chartData.nodes.map((n) => n.x),
+        y: chartData.nodes.map((n) => n.y),
+        hovertemplate:
+          "%{label}<br>¥%{value:,.1f}億<extra></extra>",
       },
       link: {
         source: chartData.links.map((l) => Number(l.source)),
         target: chartData.links.map((l) => Number(l.target)),
         value: chartData.links.map((l) => l.value),
-        color: chartData.links.map((l) => {
-          const sourceNode = chartData.nodes[Number(l.source)];
-          return sourceNode ? sourceNode.color + "40" : "#00000020";
-        }),
+        color: linkColors,
         hovertemplate:
-          "%{source.label} → %{target.label}<br>%{value:,.1f} 億円<extra></extra>",
+          "%{source.label} → %{target.label}<br>¥%{value:,.1f}億<extra></extra>",
       },
     } as PlotParams["data"][number],
   ];
@@ -54,26 +61,27 @@ export function SankeyDiagram({
   const layout: PlotParams["layout"] = {
     title: {
       text: `${companyName} ${fiscalPeriod} 損益フロー (${showThisYear ? "当期" : "前期"})`,
-      font: { size: 16 },
+      font: { size: 15, color: "#1f2937" },
     },
-    font: { family: "system-ui, sans-serif", size: 11 },
-    margin: { l: 10, r: 10, t: 50, b: 10 },
-    height: 550,
+    font: { family: "system-ui, -apple-system, sans-serif", size: 11 },
+    margin: { l: 0, r: 0, t: 50, b: 10 },
+    height: 600,
     paper_bgcolor: "transparent",
+    plot_bgcolor: "transparent",
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-bold text-gray-900">
-          Step 5: Sankey Diagram (億円)
+          Sankey Diagram (億円)
         </h3>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowThisYear(false)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               !showThisYear
-                ? "bg-blue-600 text-white"
+                ? "bg-gray-700 text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -83,7 +91,7 @@ export function SankeyDiagram({
             onClick={() => setShowThisYear(true)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               showThisYear
-                ? "bg-blue-600 text-white"
+                ? "bg-gray-700 text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >

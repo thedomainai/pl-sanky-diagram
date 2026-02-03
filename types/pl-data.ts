@@ -57,6 +57,8 @@ export interface SankeyNode {
   id: string;
   label: string;
   color: string;
+  x: number;
+  y: number;
 }
 
 export interface SankeyLink {
