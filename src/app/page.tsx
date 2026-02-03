@@ -3,6 +3,7 @@
 import { usePlExtraction } from "../hooks/use-pl-extraction";
 import { PdfUploader } from "../components/PdfUploader";
 import { PlDataTable } from "../components/PlDataTable";
+import { SankeyTable } from "../components/SankeyTable";
 import { SankeyDiagram } from "../components/SankeyDiagram";
 import { ExcelDownloadButton } from "../components/ExcelDownloadButton";
 
@@ -11,18 +12,24 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-100">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         <header className="text-center mb-10">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             決算短信 P/L Analyzer
           </h1>
           <p className="text-gray-500">
-            決算短信PDFをアップロードして、損益計算書をSankey Diagramで可視化
+            決算短信PDFをアップロード → P/L抽出 → セグメント取得 → Sankey Diagram
           </p>
         </header>
 
+        {/* Step 0: Upload */}
         {state.phase === "upload" && (
-          <PdfUploader onFileSelected={extractFromPdf} />
+          <div>
+            <p className="text-center text-sm font-medium text-gray-500 mb-4">
+              Step 0: PDFアップロード
+            </p>
+            <PdfUploader onFileSelected={extractFromPdf} />
+          </div>
         )}
 
         {state.phase === "processing" && (
@@ -30,7 +37,7 @@ export default function Home() {
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
             <p className="text-lg text-gray-600">PDFを解析中...</p>
             <p className="text-sm text-gray-400 mt-1">
-              Claude APIでデータを抽出しています
+              Claude APIでP/L・セグメントデータを抽出しています
             </p>
           </div>
         )}
@@ -38,7 +45,9 @@ export default function Home() {
         {state.phase === "error" && (
           <div className="max-w-xl mx-auto">
             <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-              <p className="text-red-700 font-medium mb-2">エラーが発生しました</p>
+              <p className="text-red-700 font-medium mb-2">
+                エラーが発生しました
+              </p>
               <p className="text-red-600 text-sm mb-4">{state.message}</p>
               <button
                 onClick={reset}
@@ -51,7 +60,8 @@ export default function Home() {
         )}
 
         {state.phase === "results" && (
-          <div className="space-y-6">
+          <div className="space-y-8">
+            {/* Action bar */}
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">分析結果</h2>
               <div className="flex items-center gap-3">
@@ -68,8 +78,18 @@ export default function Home() {
               </div>
             </div>
 
-            <SankeyDiagram data={state.data} />
+            {/* Step 1 & 2: P/L Table with Segments */}
             <PlDataTable data={state.data} />
+
+            {/* Step 3 & 4 & 5: Sankey Table (億円 converted, adjusted) */}
+            <SankeyTable rows={state.sankeyRows} />
+
+            {/* Step 5: Sankey Diagram */}
+            <SankeyDiagram
+              rows={state.sankeyRows}
+              companyName={state.data.company_name}
+              fiscalPeriod={state.data.fiscal_period}
+            />
           </div>
         )}
       </div>

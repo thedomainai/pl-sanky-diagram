@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import type { PlotParams } from "react-plotly.js";
-import type { PlData } from "../../types/pl-data";
-import { transformPlToSankey } from "../lib/sankey-data";
+import type { SankeyRow } from "../../types/pl-data";
+import { sankeyRowsToChartData } from "../lib/sankey-data";
 
 const Plot = dynamic(
   () => import("react-plotly.js").then((mod) => mod.default),
@@ -11,13 +12,18 @@ const Plot = dynamic(
 ) as React.ComponentType<PlotParams>;
 
 interface SankeyDiagramProps {
-  data: PlData;
+  rows: SankeyRow[];
+  companyName: string;
+  fiscalPeriod: string;
 }
 
-export function SankeyDiagram({ data }: SankeyDiagramProps) {
-  const sankeyData = transformPlToSankey(data);
-
-  const nodeMap = new Map(sankeyData.nodes.map((n, i) => [n.id, i]));
+export function SankeyDiagram({
+  rows,
+  companyName,
+  fiscalPeriod,
+}: SankeyDiagramProps) {
+  const [showThisYear, setShowThisYear] = useState(true);
+  const chartData = sankeyRowsToChartData(rows, showThisYear);
 
   const plotData: PlotParams["data"] = [
     {
@@ -27,44 +33,64 @@ export function SankeyDiagram({ data }: SankeyDiagramProps) {
         pad: 20,
         thickness: 24,
         line: { color: "white", width: 1 },
-        label: sankeyData.nodes.map((n) => n.label),
-        color: sankeyData.nodes.map((n) => n.color),
-        hovertemplate:
-          "%{label}<br>%{value:,.0f} " +
-          data.currency_unit +
-          "<extra></extra>",
+        label: chartData.nodes.map((n) => n.label),
+        color: chartData.nodes.map((n) => n.color),
+        hovertemplate: "%{label}<br>%{value:,.1f} 億円<extra></extra>",
       },
       link: {
-        source: sankeyData.links.map((l) => nodeMap.get(l.source) ?? 0),
-        target: sankeyData.links.map((l) => nodeMap.get(l.target) ?? 0),
-        value: sankeyData.links.map((l) => l.value),
-        color: sankeyData.links.map((l) => {
-          const sourceNode = sankeyData.nodes.find(
-            (n) => n.id === l.source
-          );
+        source: chartData.links.map((l) => Number(l.source)),
+        target: chartData.links.map((l) => Number(l.target)),
+        value: chartData.links.map((l) => l.value),
+        color: chartData.links.map((l) => {
+          const sourceNode = chartData.nodes[Number(l.source)];
           return sourceNode ? sourceNode.color + "40" : "#00000020";
         }),
         hovertemplate:
-          "%{source.label} → %{target.label}<br>%{value:,.0f} " +
-          data.currency_unit +
-          "<extra></extra>",
+          "%{source.label} → %{target.label}<br>%{value:,.1f} 億円<extra></extra>",
       },
     } as PlotParams["data"][number],
   ];
 
   const layout: PlotParams["layout"] = {
     title: {
-      text: `${data.company_name} ${data.fiscal_period} 損益フロー`,
+      text: `${companyName} ${fiscalPeriod} 損益フロー (${showThisYear ? "当期" : "前期"})`,
       font: { size: 16 },
     },
-    font: { family: "system-ui, sans-serif", size: 12 },
-    margin: { l: 20, r: 20, t: 50, b: 20 },
-    height: 500,
+    font: { family: "system-ui, sans-serif", size: 11 },
+    margin: { l: 10, r: 10, t: 50, b: 10 },
+    height: 550,
     paper_bgcolor: "transparent",
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-lg font-bold text-gray-900">
+          Step 5: Sankey Diagram (億円)
+        </h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowThisYear(false)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              !showThisYear
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            前期
+          </button>
+          <button
+            onClick={() => setShowThisYear(true)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              showThisYear
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            当期
+          </button>
+        </div>
+      </div>
       <Plot
         data={plotData}
         layout={layout}

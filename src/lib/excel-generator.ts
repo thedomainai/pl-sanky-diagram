@@ -1,44 +1,70 @@
 import ExcelJS from "exceljs";
-import type { PlData } from "../../types/pl-data";
+import type { PlData, SankeyRow } from "../../types/pl-data";
 
-export async function generatePlExcel(data: PlData): Promise<Buffer> {
+export async function generatePlExcel(
+  data: PlData,
+  sankeyRows: SankeyRow[]
+): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("損益計算書");
 
-  // Column widths
-  sheet.getColumn(1).width = 35;
-  sheet.getColumn(2).width = 25;
-  sheet.getColumn(3).width = 20;
+  // Sheet 1: P/L (損益計算書)
+  const plSheet = workbook.addWorksheet("損益計算書");
+  plSheet.getColumn(1).width = 35;
+  plSheet.getColumn(2).width = 25;
+  plSheet.getColumn(3).width = 18;
+  plSheet.getColumn(4).width = 18;
 
-  // Header
-  const titleRow = sheet.addRow([
+  const titleRow = plSheet.addRow([
     `${data.company_name} ${data.fiscal_period}`,
   ]);
   titleRow.font = { bold: true, size: 14 };
-  sheet.mergeCells("A1:C1");
+  plSheet.mergeCells("A1:D1");
 
-  const infoRow = sheet.addRow([
+  const infoRow = plSheet.addRow([
     `${data.consolidated ? "連結" : "単体"}損益計算書`,
+    "",
     "",
     `(単位: ${data.currency_unit})`,
   ]);
   infoRow.font = { size: 11, italic: true };
 
-  sheet.addRow([]);
+  plSheet.addRow([]);
 
-  // Column headers
-  const headerRow = sheet.addRow(["科目", "English", "金額"]);
-  headerRow.font = { bold: true };
-  headerRow.eachCell((cell) => {
+  // Segment section
+  const segHeader = plSheet.addRow(["セグメント別売上高", "", "前期", "当期"]);
+  segHeader.font = { bold: true };
+  segHeader.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF3B82F6" },
+    };
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  });
+
+  for (const seg of data.segments) {
+    const row = plSheet.addRow([
+      `  ${seg.name}`,
+      "",
+      seg.amount_last_year,
+      seg.amount_this_year,
+    ]);
+    row.getCell(3).numFmt = "#,##0";
+    row.getCell(4).numFmt = "#,##0";
+  }
+
+  plSheet.addRow([]);
+
+  // P/L items header
+  const plHeader = plSheet.addRow(["科目", "English", "前期", "当期"]);
+  plHeader.font = { bold: true };
+  plHeader.eachCell((cell) => {
     cell.fill = {
       type: "pattern",
       pattern: "solid",
       fgColor: { argb: "FF2563EB" },
     };
     cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    cell.border = {
-      bottom: { style: "thin" },
-    };
   });
 
   const items: { key: keyof PlData; indent?: boolean }[] = [
@@ -61,19 +87,63 @@ export async function generatePlExcel(data: PlData): Promise<Buffer> {
     const lineItem = data[item.key];
     if (typeof lineItem !== "object" || !("label_ja" in lineItem)) continue;
 
-    const label = item.indent
-      ? `  ${lineItem.label_ja}`
-      : lineItem.label_ja;
-    const row = sheet.addRow([label, lineItem.label_en, lineItem.amount]);
+    const label = item.indent ? `  ${lineItem.label_ja}` : lineItem.label_ja;
+    const row = plSheet.addRow([
+      label,
+      lineItem.label_en,
+      lineItem.amount_last_year,
+      lineItem.amount_this_year,
+    ]);
 
     row.getCell(3).numFmt = "#,##0";
+    row.getCell(4).numFmt = "#,##0";
 
     if (!item.indent) {
       row.font = { bold: true };
-      row.getCell(1).border = { top: { style: "thin" } };
-      row.getCell(2).border = { top: { style: "thin" } };
-      row.getCell(3).border = { top: { style: "thin" } };
+      for (let c = 1; c <= 4; c++) {
+        row.getCell(c).border = { top: { style: "thin" } };
+      }
     }
+  }
+
+  // Sheet 2: Sankey Table
+  const sankeySheet = workbook.addWorksheet("Sankey Table");
+  sankeySheet.getColumn(1).width = 30;
+  sankeySheet.getColumn(2).width = 30;
+  sankeySheet.getColumn(3).width = 20;
+  sankeySheet.getColumn(4).width = 20;
+
+  const sTitle = sankeySheet.addRow(["Sankey Diagram用テーブル (億円)"]);
+  sTitle.font = { bold: true, size: 14 };
+  sankeySheet.mergeCells("A1:D1");
+
+  sankeySheet.addRow([]);
+
+  const sHeader = sankeySheet.addRow([
+    "Source",
+    "Target",
+    "Amount This Year",
+    "Amount Last Year",
+  ]);
+  sHeader.font = { bold: true };
+  sHeader.eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF2563EB" },
+    };
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  });
+
+  for (const row of sankeyRows) {
+    const r = sankeySheet.addRow([
+      row.source,
+      row.target,
+      row.amount_this_year,
+      row.amount_last_year,
+    ]);
+    r.getCell(3).numFmt = "#,##0.0";
+    r.getCell(4).numFmt = "#,##0.0";
   }
 
   const buffer = await workbook.xlsx.writeBuffer();

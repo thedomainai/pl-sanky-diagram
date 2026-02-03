@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { PlData } from "../../types/pl-data";
+import type { PlData, SankeyRow } from "../../types/pl-data";
+import { generateSankeyTable } from "../lib/sankey-data";
 
 type AppState =
   | { phase: "upload" }
   | { phase: "processing" }
-  | { phase: "results"; data: PlData }
+  | { phase: "results"; data: PlData; sankeyRows: SankeyRow[] }
   | { phase: "error"; message: string };
 
 export function usePlExtraction() {
@@ -27,11 +28,17 @@ export function usePlExtraction() {
       const json = await res.json();
 
       if (!res.ok) {
-        setState({ phase: "error", message: json.error || "抽出に失敗しました" });
+        setState({
+          phase: "error",
+          message: json.error || "抽出に失敗しました",
+        });
         return;
       }
 
-      setState({ phase: "results", data: json.data });
+      const plData: PlData = json.data;
+      const sankeyRows = generateSankeyTable(plData);
+
+      setState({ phase: "results", data: plData, sankeyRows });
     } catch {
       setState({ phase: "error", message: "通信エラーが発生しました" });
     }
@@ -41,7 +48,7 @@ export function usePlExtraction() {
     const res = await fetch("/api/export-excel", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ plData: data }),
     });
 
     if (!res.ok) {
